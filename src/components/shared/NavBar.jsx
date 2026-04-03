@@ -15,6 +15,9 @@ export function NavBar() {
 
   return (
     <nav className="navbar">
+      <div className="exeter-logo"> 
+        <img src="/images/exeter_bw.png" alt="Exeter College" className="exeter-logo-image" />
+      </div>
       <div className="navbar-brand">
         <Link to="/dashboard">OSP Hours Tracker</Link>
       </div>
@@ -26,7 +29,7 @@ export function NavBar() {
         )}
       </ul>
       <div className="navbar-user">
-        <span className="navbar-username">{user.role === 'admin' ? '★ ' : ''}{user.first_name || 'User'}</span>
+        <span className="navbar-username">{user.role === 'admin' ? '★ ' : ''}{((user.first_name || '') + ' ' + (user.last_name || '')).trim() || 'User'}</span>
         <button className="btn btn-outline-light btn-sm" onClick={logoutUser}>Log out</button>
       </div>
     </nav>

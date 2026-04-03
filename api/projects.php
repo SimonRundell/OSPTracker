@@ -27,14 +27,22 @@ switch ($action) {
      *
      * @param  void
      * @return array[] { id, name, description, year, centre_number, base_hours,
-     *   start_date, end_date, created_by, is_active, created_at, creator_name }
+     *   start_date, end_date, created_by, is_active, created_at, creator_name,
+     *   student_count, scheduled_minutes }
+     *   student_count    - number of enrolled students (project_students rows).
+     *   scheduled_minutes - sum of TIMESTAMPDIFF(MINUTE, start_time, end_time)
+     *                       across all sessions; used by the dashboard to display
+     *                       remaining unscheduled time (base_hours×60 − scheduled).
      */
     case 'get_all':
         $result = $mysqli->query(
             "SELECT p.id, p.name, p.description, p.year, p.centre_number,
                     p.base_hours, p.start_date, p.end_date, p.created_by,
                     p.is_active, p.created_at,
-                    CONCAT(s.first_name,' ',s.last_name) AS creator_name
+                    CONCAT(s.first_name,' ',s.last_name) AS creator_name,
+                    (SELECT COUNT(*) FROM project_students ps WHERE ps.project_id = p.id) AS student_count,
+                    (SELECT COALESCE(SUM(TIMESTAMPDIFF(MINUTE, se.start_time, se.end_time)), 0)
+                     FROM sessions se WHERE se.project_id = p.id) AS scheduled_minutes
              FROM projects p
              LEFT JOIN staff s ON s.id = p.created_by
              ORDER BY p.year DESC, p.name"

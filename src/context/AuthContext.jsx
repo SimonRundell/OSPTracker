@@ -1,6 +1,13 @@
 /**
  * Authentication context and provider for the OSP Hours Tracker.
  * Provides { user, token, loginUser, logoutUser } to the whole app.
+ *
+ * The `user` object is a merge of the decoded JWT payload and the staff
+ * record returned by the login endpoint, giving consumers access to both
+ * auth claims (sub, role, exp) and profile fields (first_name, last_name,
+ * username, id). Staff details are persisted to localStorage under the key
+ * `osp_staff` so they survive a page refresh without a round-trip to the API.
+ *
  * @module AuthContext
  */
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
@@ -36,21 +43,27 @@ export function AuthProvider({ children }) {
 
   // Restore session from localStorage on mount
   useEffect(() => {
-    const stored = localStorage.getItem('osp_token');
+    const stored      = localStorage.getItem('osp_token');
+    const storedStaff = localStorage.getItem('osp_staff');
     if (stored) {
       const payload = decodeToken(stored);
       if (payload && payload.exp > Date.now() / 1000) {
+        const staff = storedStaff ? JSON.parse(storedStaff) : {};
         setToken(stored);
-        setUser(payload);
+        setUser({ ...payload, ...staff });
       } else {
         localStorage.removeItem('osp_token');
+        localStorage.removeItem('osp_staff');
       }
     }
     setLoading(false);
   }, []);
 
   /**
-   * Log in with username and password.
+   * Authenticate with the API. On success, persists the JWT to `osp_token`
+   * and the staff profile to `osp_staff` in localStorage, then sets `user`
+   * to the merged payload. Redirects to /change-password if the account has
+   * must_change_password set, otherwise to /dashboard.
    * @param {string} username
    * @param {string} password
    * @returns {Promise<void>}
@@ -59,9 +72,9 @@ export function AuthProvider({ children }) {
     const data = await api.login(username, password);
     const payload = decodeToken(data.token);
     localStorage.setItem('osp_token', data.token);
+    localStorage.setItem('osp_staff', JSON.stringify(data.staff));
     setToken(data.token);
-    setUser(payload);
-    console.log(payload)
+    setUser({ ...payload, ...data.staff });
     if (data.staff.must_change_password) {
       navigate('/change-password');
     } else {
@@ -70,11 +83,13 @@ export function AuthProvider({ children }) {
   }, [navigate]);
 
   /**
-   * Log out and clear session.
+   * Clear the JWT and staff profile from localStorage, reset state,
+   * and redirect to /login.
    * @returns {void}
    */
   const logoutUser = useCallback(() => {
     localStorage.removeItem('osp_token');
+    localStorage.removeItem('osp_staff');
     setToken(null);
     setUser(null);
     navigate('/login');
@@ -91,7 +106,14 @@ export function AuthProvider({ children }) {
 
 /**
  * Hook to access auth context.
- * @returns {{ user: object|null, token: string|null, loginUser: Function, logoutUser: Function }}
+ * @returns {{
+ *   user: { sub: number, role: string, exp: number, id: number,
+ *            username: string, first_name: string, last_name: string,
+ *            must_change_password: number }|null,
+ *   token: string|null,
+ *   loginUser: Function,
+ *   logoutUser: Function
+ * }}
  */
 export function useAuth() {
   return useContext(AuthContext);

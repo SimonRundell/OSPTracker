@@ -17,7 +17,9 @@ import config from '../config.js';
 async function apiPost(endpoint, payload, token = null) {
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  console.log("API Request", { endpoint, payload, token });
+  
+  // Debug onby - log the API request details (endpoint, payload, token presence)
+  // console.log("API Request", { endpoint, payload, token });
   const response = await axios.post(
     `${config.apiBase}/${endpoint}.php`,
     payload,

@@ -11,7 +11,14 @@ import { SessionFormModal } from './SessionFormModal.jsx';
 import * as api from '../../api/api.js';
 
 /**
- * Lists all sessions for a project with links to attendance entry.
+ * Lists all sessions for a project. Features:
+ * - Add Session button opens SessionFormModal in create mode.
+ * - Admins see Edit and Delete buttons per row; Edit opens SessionFormModal
+ *   in edit mode pre-populated with that session's data.
+ * - Table footer shows total scheduled time and remaining unscheduled time
+ *   (project base_hours × 60 minus sum of session durations). Remaining
+ *   is highlighted in red when negative (over-scheduled).
+ * - Each session links to its attendance entry page.
  */
 export function SessionListPage() {
   const { id } = useParams();
@@ -21,6 +28,7 @@ export function SessionListPage() {
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState('');
   const [showForm, setShowForm]     = useState(false);
+  const [editSession, setEditSession] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
   const loadData = useCallback(async () => {
@@ -66,7 +74,9 @@ export function SessionListPage() {
    */
   const fmt = (t) => (t || '').substring(0, 5);
 
-  const totalAvailable = sessions.reduce((sum, s) => sum + parseFloat(s.available_minutes || 0), 0);
+  const totalScheduled = sessions.reduce((sum, s) => sum + parseFloat(s.available_minutes || 0), 0);
+  const totalProjectMins = Math.round((project?.base_hours ?? 0) * 60);
+  const remainingMins = totalProjectMins - Math.round(totalScheduled);
 
   if (loading) return <LoadingSpinner />;
 
@@ -120,7 +130,10 @@ export function SessionListPage() {
                       Attendance
                     </Link>
                     {user?.role === 'admin' && (
-                      <button className="btn btn-danger btn-sm" onClick={() => handleDelete(s.session_id)}>Delete</button>
+                      <>
+                        <button className="btn btn-secondary btn-sm" onClick={() => setEditSession(s)}>Edit</button>
+                        <button className="btn btn-danger btn-sm" onClick={() => handleDelete(s.session_id)}>Delete</button>
+                      </>
                     )}
                   </div>
                 </td>
@@ -130,15 +143,20 @@ export function SessionListPage() {
               <tr><td colSpan={8} className="text-center text-muted">No sessions yet.</td></tr>
             )}
           </tbody>
-          {sessions.length > 0 && (
-            <tfoot>
-              <tr>
-                <td colSpan={4} className="text-right">Total available class time:</td>
-                <td>{Math.round(totalAvailable)} mins</td>
-                <td colSpan={3}></td>
-              </tr>
-            </tfoot>
-          )}
+          <tfoot>
+            <tr>
+              <td colSpan={4} className="text-right">Scheduled time:</td>
+              <td>{Math.round(totalScheduled)} mins</td>
+              <td colSpan={3}></td>
+            </tr>
+            <tr>
+              <td colSpan={4} className="text-right">Remaining unscheduled time:</td>
+              <td style={{ fontWeight: 'bold', color: remainingMins < 0 ? 'var(--danger)' : 'inherit' }}>
+                {remainingMins} mins
+              </td>
+              <td colSpan={3}></td>
+            </tr>
+          </tfoot>
         </table>
       </div>
 
@@ -146,6 +164,15 @@ export function SessionListPage() {
         <SessionFormModal
           projectId={parseInt(id)}
           onClose={() => setShowForm(false)}
+          onCreated={loadData}
+        />
+      )}
+
+      {editSession && (
+        <SessionFormModal
+          projectId={parseInt(id)}
+          session={editSession}
+          onClose={() => setEditSession(null)}
           onCreated={loadData}
         />
       )}

@@ -10,7 +10,11 @@ import { LoadingSpinner } from '../shared/LoadingSpinner.jsx';
 import * as api from '../../api/api.js';
 
 /**
- * Dashboard with project overview cards.
+ * Dashboard with project overview cards. Each card shows student count,
+ * base allowance, and remaining unscheduled minutes (base_hours×60 minus
+ * scheduled_minutes from the API). Remaining is shown in red when negative.
+ * Both student_count and scheduled_minutes are returned by the get_all
+ * projects endpoint via subqueries.
  */
 export function DashboardPage() {
   const { token, user } = useAuth();
@@ -71,6 +75,14 @@ export function DashboardPage() {
               <p className="text-muted" style={{fontSize:'0.82rem'}}>{project.centre_number}</p>
               <p>{project.base_hours}h base allowance</p>
               <p>{project.student_count || 0} students enrolled</p>
+              {(() => {
+                const remaining = Math.round(project.base_hours * 60) - parseInt(project.scheduled_minutes || 0);
+                return (
+                  <p style={{ color: remaining < 0 ? 'var(--danger)' : 'inherit' }}>
+                    {remaining} mins unscheduled
+                  </p>
+                );
+              })()}
             </div>
             <div className="project-card-footer">
               <Link to={`/projects/${project.id}/sessions`} className="btn btn-secondary btn-sm">Sessions</Link>

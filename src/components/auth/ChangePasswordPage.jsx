@@ -18,7 +18,7 @@ export function ChangePasswordPage() {
   const [success, setSuccess]   = useState('');
   const [loading, setLoading]   = useState(false);
 
-  console.log('Rendering ChangePasswordPage', { user });
+  // console.log('Rendering ChangePasswordPage', { user });
 
   /**
    * Validate the new password locally.

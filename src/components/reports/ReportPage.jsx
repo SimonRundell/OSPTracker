@@ -11,6 +11,18 @@ import * as api from '../../api/api.js';
 
 /**
  * Full project report page with sessions, student summaries, and export.
+ *
+ * Sections:
+ *  1. Project Summary — base hours, sessions completed, total scheduled time,
+ *     remaining unscheduled time (base_hours×60 − scheduled; red when negative),
+ *     student count, and project dates.
+ *  2. Session Log — per-session table with a footer showing scheduled total and
+ *     remaining unscheduled time.
+ *  3. Student Summary — per-student allowed/used/remaining minutes with a
+ *     per-session attendance breakdown.
+ *
+ * The college logo is shown in the report header and is included in print/PDF output.
+ * Print styles force A4 landscape orientation.
  */
 export function ReportPage() {
   const { projectId } = useParams();
@@ -56,6 +68,9 @@ export function ReportPage() {
   if (!data)   return null;
 
   const { project, sessions, students, total_available_minutes, generated_at } = data;
+  const totalProjectMins  = Math.round(parseFloat(project.base_hours) * 60);
+  const scheduledMins     = Math.round(parseFloat(total_available_minutes));
+  const remainingMins     = totalProjectMins - scheduledMins;
 
   return (
     <div className="page-container">
@@ -69,6 +84,7 @@ export function ReportPage() {
       <div className="report-container">
         {/* ---- Header ---- */}
         <div className="report-header">
+          <img src="/images/exeter_bw.png" alt="Exeter College" className="exeter-logo-image" style={{marginBottom:'10px'}} />
           <h1>{project.name}</h1>
           <div className="report-meta">
             Year: {project.year} &bull; Centre: {project.centre_number} &bull; Generated: {generated_at}
@@ -81,9 +97,15 @@ export function ReportPage() {
           <div className="table-wrapper">
             <table>
               <tbody>
-                <tr><td style={{fontWeight:600,width:'220px'}}>Base Hours</td><td>{project.base_hours}h ({parseFloat(project.base_hours)*60} mins)</td></tr>
+                <tr><td style={{fontWeight:600,width:'220px'}}>Base Hours</td><td>{project.base_hours}h ({totalProjectMins} mins)</td></tr>
                 <tr><td style={{fontWeight:600}}>Sessions Completed</td><td>{sessions.length}</td></tr>
-                <tr><td style={{fontWeight:600}}>Total Class Time Available</td><td>{Math.round(parseFloat(total_available_minutes))} mins ({(total_available_minutes/60).toFixed(1)}h)</td></tr>
+                <tr><td style={{fontWeight:600}}>Total Scheduled Time</td><td>{scheduledMins} mins ({(scheduledMins/60).toFixed(1)}h)</td></tr>
+                <tr>
+                  <td style={{fontWeight:600}}>Remaining Unscheduled Time</td>
+                  <td style={{color: remainingMins < 0 ? 'var(--danger)' : 'inherit', fontWeight: 600}}>
+                    {remainingMins} mins ({(remainingMins/60).toFixed(1)}h)
+                  </td>
+                </tr>
                 <tr><td style={{fontWeight:600}}>Students Enrolled</td><td>{students.length}</td></tr>
                 <tr><td style={{fontWeight:600}}>Start Date</td><td>{project.start_date || '—'}</td></tr>
                 <tr><td style={{fontWeight:600}}>End Date</td><td>{project.end_date || '—'}</td></tr>
@@ -123,8 +145,15 @@ export function ReportPage() {
               </tbody>
               <tfoot>
                 <tr>
-                  <td colSpan={4} className="text-right">Total class time:</td>
-                  <td>{Math.round(parseFloat(total_available_minutes))} mins</td>
+                  <td colSpan={4} className="text-right">Total scheduled:</td>
+                  <td>{scheduledMins} mins</td>
+                  <td colSpan={2}></td>
+                </tr>
+                <tr>
+                  <td colSpan={4} className="text-right">Remaining unscheduled:</td>
+                  <td style={{fontWeight:'bold', color: remainingMins < 0 ? 'var(--danger)' : 'inherit'}}>
+                    {remainingMins} mins
+                  </td>
                   <td colSpan={2}></td>
                 </tr>
               </tfoot>

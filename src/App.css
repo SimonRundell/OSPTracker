@@ -137,6 +137,11 @@ h3 { font-size: 1.1rem; }
   font-size: 0.9rem;
 }
 
+.exeter-logo-image {
+  height: 32px;
+  width: auto;
+}
+
 /* --------------------------------------------------------------------------
    Buttons
    -------------------------------------------------------------------------- */
@@ -156,6 +161,7 @@ h3 { font-size: 1.1rem; }
   white-space: nowrap;
 }
 
+.btn:hover    { text-decoration: none; }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .btn-primary   { background: var(--colour-primary);   color: #fff; }
@@ -661,5 +667,5 @@ tfoot td {
 
   thead th { background: #1a5276 !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
-  @page { size: A4 portrait; margin: 15mm; }
+  @page { size: A4 landscape; margin: 15mm; }
 }

@@ -74,15 +74,17 @@ switch ($action) {
      *              The plain temporary password is returned ONCE in the response —
      *              it is never stored and cannot be recovered.
      *
-     * @param  string $username    Unique login username.
-     * @param  string $email       Unique email address.
-     * @param  string $first_name  Staff member's first name.
-     * @param  string $last_name   Staff member's last name.
-     * @param  string $role        'admin' or 'staff' (defaults to 'staff').
+     * @param  string      $username    Unique login username. Required.
+     * @param  string|null $email       Email address. Optional — no uniqueness
+     *                                  constraint, allowing the same address to
+     *                                  be shared across admin and staff accounts.
+     * @param  string      $first_name  Staff member's first name. Required.
+     * @param  string      $last_name   Staff member's last name. Required.
+     * @param  string      $role        'admin' or 'staff' (defaults to 'staff').
      * @return array { id: int, temp_password: string, message: string }
-     * @throws 400  If any required field is missing.
+     * @throws 400  If username, first_name, or last_name are missing.
      * @throws 403  If caller is not an admin.
-     * @throws 409  If username or email already exists.
+     * @throws 409  If username already exists.
      */
     case 'create':
         require_admin($jwtPayload);
@@ -92,9 +94,10 @@ switch ($action) {
         $lastName   = trim(strip_tags($data['last_name']  ?? ''));
         $role       = in_array($data['role'] ?? '', ['admin','staff']) ? $data['role'] : 'staff';
 
-        if (!$username || !$email || !$firstName || !$lastName) {
-            send_response('All fields are required.', 400);
+        if (!$username || !$firstName || !$lastName) {
+            send_response('Username, first name, and last name are required.', 400);
         }
+        $email = $email ?: null;
 
         $tempPass = generate_temp_password(12);
         $hash     = password_hash($tempPass, PASSWORD_BCRYPT, ['cost' => 12]);
@@ -106,7 +109,7 @@ switch ($action) {
         $stmt->bind_param('ssssss', $username, $email, $hash, $firstName, $lastName, $role);
         if (!$stmt->execute()) {
             log_info("Staff create error: " . $stmt->error);
-            send_response('Could not create staff member. Username or email may already exist.', 409);
+            send_response('Could not create staff member. Username may already exist.', 409);
         }
         $newId = $stmt->insert_id;
         $stmt->close();

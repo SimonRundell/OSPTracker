@@ -43,11 +43,16 @@ const fmt = (t) => (t || '').substring(0, 5);
 
 /**
  * Export project report data as CSV (two sections separated by blank line).
+ * Sessions section footer includes total scheduled and remaining unscheduled
+ * minutes. Students section includes per-session attendance columns.
  * @param {object} reportData
  * @param {string} projectName
  */
 export function exportCSV(reportData, projectName) {
   const { project, sessions, students } = reportData;
+  const totalProjectMins = Math.round(parseFloat(project.base_hours) * 60);
+  const scheduledMins    = Math.round(parseFloat(reportData.total_available_minutes));
+  const remainingMins    = totalProjectMins - scheduledMins;
 
   // Sessions section
   const sessionRows = [
@@ -64,7 +69,8 @@ export function exportCSV(reportData, projectName) {
       s.session_type,
       s.supervisor_name,
     ]),
-    ['', '', '', 'Total:', Math.round(parseFloat(reportData.total_available_minutes))],
+    ['', '', '', 'Total scheduled:', scheduledMins],
+    ['', '', '', 'Remaining unscheduled:', remainingMins],
     [],
     ['STUDENTS'],
     ['Candidate #', 'CIS Ref', 'Surname', 'First Name', '+Ext%', 'Rest Breaks', 'Allowed Mins', 'Used Mins', 'Remaining', '% Used',
@@ -97,12 +103,17 @@ export function exportCSV(reportData, projectName) {
 }
 
 /**
- * Export project report data as Excel workbook (two sheets).
+ * Export project report data as Excel workbook (two sheets: Sessions, Students).
+ * Sessions sheet footer includes total scheduled and remaining unscheduled
+ * minutes. Students sheet includes per-session attendance columns.
  * @param {object} reportData
  * @param {string} projectName
  */
 export function exportExcel(reportData, projectName) {
   const { project, sessions, students } = reportData;
+  const totalProjectMins = Math.round(parseFloat(project.base_hours) * 60);
+  const scheduledMins    = Math.round(parseFloat(reportData.total_available_minutes));
+  const remainingMins    = totalProjectMins - scheduledMins;
   const wb = XLSX.utils.book_new();
 
   // Sessions sheet
@@ -118,7 +129,8 @@ export function exportExcel(reportData, projectName) {
       s.supervisor_name,
       s.notes || '',
     ]),
-    ['', '', '', 'Total:', Math.round(parseFloat(reportData.total_available_minutes))],
+    ['', '', '', 'Total scheduled:', scheduledMins],
+    ['', '', '', 'Remaining unscheduled:', remainingMins],
   ];
   const wsS = XLSX.utils.aoa_to_sheet(sessRows);
   wsS['!cols'] = [6,12,8,8,14,12,20,30].map(w => ({ wch: w }));
@@ -160,6 +172,9 @@ export function exportExcel(reportData, projectName) {
 
 /**
  * ExportButtons component — print, CSV and Excel export buttons.
+ * Print triggers window.print(); CSS forces A4 landscape via @page rule.
+ * Both CSV and Excel exports include scheduled time and remaining unscheduled
+ * time rows at the bottom of the sessions section.
  * @param {{ reportData: object, projectName: string }} props
  */
 export function ExportButtons({ reportData, projectName }) {

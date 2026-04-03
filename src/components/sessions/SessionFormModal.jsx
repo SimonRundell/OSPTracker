@@ -1,5 +1,5 @@
 /**
- * SessionFormModal - modal form to create a new session.
+ * SessionFormModal - modal form to create or edit a session.
  * @module SessionFormModal
  */
 import { useState, useEffect } from 'react';
@@ -7,20 +7,32 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import * as api from '../../api/api.js';
 
 /**
- * @param {{ projectId: number, onClose: Function, onCreated: Function }} props
+ * Dual-mode modal form for creating and editing sessions.
+ *
+ * Create mode (no `session` prop): all fields editable, calls api.createSession.
+ * Edit mode (`session` prop provided): pre-populates fields from the existing
+ * session; session_type and student are read-only (immutable after creation);
+ * calls api.updateSession (admin only).
+ *
+ * @param {object}   props
+ * @param {number}   props.projectId  Project to create the session under.
+ * @param {Function} props.onClose    Called when the modal should be dismissed.
+ * @param {Function} props.onCreated  Called after a successful save to trigger a data reload.
+ * @param {object}  [props.session]   Existing session object — triggers edit mode when supplied.
  */
-export function SessionFormModal({ projectId, onClose, onCreated }) {
+export function SessionFormModal({ projectId, onClose, onCreated, session }) {
+  const isEdit = Boolean(session);
   const { token, user } = useAuth();
   const [allStaff, setAllStaff]   = useState([]);
   const [students, setStudents]   = useState([]);
   const [form, setForm] = useState({
-    session_date: '',
-    start_time: '',
-    end_time: '',
-    supervisor_id: user?.sub || '',
-    session_type: 'class',
+    session_date: session?.session_date ?? '',
+    start_time: (session?.start_time ?? '').substring(0, 5),
+    end_time: (session?.end_time ?? '').substring(0, 5),
+    supervisor_id: session?.supervisor_id ?? user?.sub ?? '',
+    session_type: session?.session_type ?? 'class',
     student_project_id: '',
-    notes: '',
+    notes: session?.notes ?? '',
   });
   const [error, setError]   = useState('');
   const [saving, setSaving] = useState(false);
@@ -33,8 +45,8 @@ export function SessionFormModal({ projectId, onClose, onCreated }) {
       ]);
       setAllStaff(staffData.filter(s => parseInt(s.is_active)));
       setStudents(studentData);
-      // Default supervisor to current user
-      if (!form.supervisor_id && staffData.length > 0) {
+      // Default supervisor to current user (create mode only)
+      if (!isEdit && !form.supervisor_id && staffData.length > 0) {
         setForm(f => ({ ...f, supervisor_id: f.supervisor_id || staffData[0].id }));
       }
     };
@@ -49,7 +61,8 @@ export function SessionFormModal({ projectId, onClose, onCreated }) {
   const set = (field, value) => setForm(f => ({ ...f, [field]: value }));
 
   /**
-   * Submit the session creation form.
+   * Submit the form. Calls createSession in create mode or updateSession in
+   * edit mode, then triggers onCreated() and closes the modal on success.
    * @param {React.FormEvent} e
    */
   const handleSubmit = async (e) => {
@@ -63,26 +76,37 @@ export function SessionFormModal({ projectId, onClose, onCreated }) {
       setError('Start time must be before end time.');
       return;
     }
-    if (form.session_type === 'individual' && !form.student_project_id) {
+    if (!isEdit && form.session_type === 'individual' && !form.student_project_id) {
       setError('Please select a student for individual sessions.');
       return;
     }
     setSaving(true);
     try {
-      await api.createSession(token, {
-        project_id: projectId,
-        session_date: form.session_date,
-        start_time: form.start_time,
-        end_time: form.end_time,
-        supervisor_id: parseInt(form.supervisor_id),
-        session_type: form.session_type,
-        student_project_id: form.session_type === 'individual' ? parseInt(form.student_project_id) : null,
-        notes: form.notes,
-      });
+      if (isEdit) {
+        await api.updateSession(token, {
+          id: session.session_id,
+          session_date: form.session_date,
+          start_time: form.start_time,
+          end_time: form.end_time,
+          supervisor_id: parseInt(form.supervisor_id),
+          notes: form.notes,
+        });
+      } else {
+        await api.createSession(token, {
+          project_id: projectId,
+          session_date: form.session_date,
+          start_time: form.start_time,
+          end_time: form.end_time,
+          supervisor_id: parseInt(form.supervisor_id),
+          session_type: form.session_type,
+          student_project_id: form.session_type === 'individual' ? parseInt(form.student_project_id) : null,
+          notes: form.notes,
+        });
+      }
       onCreated();
       onClose();
     } catch (err) {
-      setError(err.response?.data?.message || 'Could not create session.');
+      setError(err.response?.data?.message || (isEdit ? 'Could not update session.' : 'Could not create session.'));
     } finally {
       setSaving(false);
     }
@@ -92,7 +116,7 @@ export function SessionFormModal({ projectId, onClose, onCreated }) {
     <div className="modal-overlay">
       <div className="modal-box">
         <div className="modal-header">
-          <h3>Add Session</h3>
+          <h3>{isEdit ? `Edit Session #${session.session_number}` : 'Add Session'}</h3>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
         <form onSubmit={handleSubmit}>
@@ -105,10 +129,14 @@ export function SessionFormModal({ projectId, onClose, onCreated }) {
               </div>
               <div className="form-group">
                 <label htmlFor="sess-type">Type</label>
-                <select id="sess-type" value={form.session_type} onChange={e => set('session_type', e.target.value)}>
-                  <option value="class">Class</option>
-                  <option value="individual">Individual</option>
-                </select>
+                {isEdit ? (
+                  <input id="sess-type" type="text" value={form.session_type} readOnly disabled />
+                ) : (
+                  <select id="sess-type" value={form.session_type} onChange={e => set('session_type', e.target.value)}>
+                    <option value="class">Class</option>
+                    <option value="individual">Individual</option>
+                  </select>
+                )}
               </div>
             </div>
             <div className="form-row">
@@ -130,7 +158,7 @@ export function SessionFormModal({ projectId, onClose, onCreated }) {
                 ))}
               </select>
             </div>
-            {form.session_type === 'individual' && (
+            {!isEdit && form.session_type === 'individual' && (
               <div className="form-group">
                 <label htmlFor="sess-student">Student</label>
                 <select id="sess-student" value={form.student_project_id} onChange={e => set('student_project_id', e.target.value)} required>
@@ -151,7 +179,7 @@ export function SessionFormModal({ projectId, onClose, onCreated }) {
           <div className="modal-footer">
             <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? 'Creating…' : 'Create Session'}
+              {saving ? (isEdit ? 'Saving…' : 'Creating…') : (isEdit ? 'Save Changes' : 'Create Session')}
             </button>
           </div>
         </form>
