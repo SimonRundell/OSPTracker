@@ -59,8 +59,19 @@ function base64url_encode(string $data): string
  */
 function require_auth(array $config): array
 {
-    $headers = getallheaders();
-    $auth    = $headers['Authorization'] ?? '';
+    $auth = '';
+    if (!empty($_SERVER['HTTP_AUTHORIZATION'])) {
+        $auth = $_SERVER['HTTP_AUTHORIZATION'];
+    } elseif (!empty($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+        $auth = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+    } else {
+        $headers = function_exists('getallheaders') ? getallheaders() : [];
+        $normalized = [];
+        foreach ($headers as $key => $value) {
+            $normalized[strtolower($key)] = $value;
+        }
+        $auth = $normalized['authorization'] ?? '';
+    }
     if (!str_starts_with($auth, 'Bearer ')) {
         send_response('Unauthorised', 401);
     }

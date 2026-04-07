@@ -70,7 +70,6 @@ osp-tracker/
 ├── index.html                  SPA entry point
 ├── vite.config.js              Vite config (base: /osp-tracker/)
 ├── package.json
-├── .config.json                Frontend config — DO NOT COMMIT
 │
 ├── public/
 │   ├── favicon.ico
@@ -80,7 +79,7 @@ osp-tracker/
 │   ├── main.jsx                React entry point
 │   ├── App.jsx                 Router + AuthProvider layout
 │   ├── App.css                 All styles (single file, light theme)
-│   ├── config.js               Loads .config.json
+│   ├── config.js               Loads config from api/config.php
 │   │
 │   ├── context/
 │   │   └── AuthContext.jsx     JWT auth state + login/logout
@@ -99,6 +98,7 @@ osp-tracker/
 │
 └── api/                        PHP backend (served by Apache)
     ├── .config.json            DB credentials & JWT secret — DO NOT COMMIT
+  ├── config.php              Frontend config endpoint (safe subset)
     ├── setup.php               Bootstrap (CORS, DB connection, helpers)
     ├── jwt_helpers.php         JWT encode/decode (no Composer)
     ├── setup_admin.php         One-time admin seed — DELETE after use
@@ -323,10 +323,11 @@ available_minutes     = TIME_TO_SEC(TIMEDIFF(end_time, start_time)) / 60
 
 ## Configuration
 
-### Backend: `api/.config.json`
+### Unified config: `api/.config.json`
 
 ```json
 {
+  "apiBase"       : "https://YOUR_DOMAIN/osp-tracker/api",
   "servername"    : "localhost",
   "username"      : "YOUR_DB_USER",
   "password"      : "YOUR_DB_PASSWORD",
@@ -339,21 +340,13 @@ available_minutes     = TIME_TO_SEC(TIMEDIFF(end_time, start_time)) / 60
 
 **Never commit this file.** It is listed in `.gitignore`.
 
+The frontend reads the safe settings via `api/config.php`.
+
 Generate a strong JWT secret:
 
 ```bash
 openssl rand -base64 48
 ```
-
-### Frontend: `.config.json`
-
-```json
-{
-  "apiBase": "https://YOUR_DOMAIN/osp-tracker/api"
-}
-```
-
-**Never commit this file.** It is listed in `.gitignore`.
 
 ---
 
@@ -379,11 +372,8 @@ openssl rand -base64 48
    mysql -u root -p < osp_tracker.sql
    ```
 
-3. **Configure the backend** — create and edit `api/.config.json`
-   with your database credentials and a strong random JWT secret.
-
-4. **Configure the frontend** — create `.config.json` in the project root
-   pointing at your deployed API URL.
+3. **Configure the app** — create and edit `api/.config.json`
+  with your database credentials, API base URL, and a strong JWT secret.
 
 5. **Create the admin user** — browse to:
    ```
@@ -399,7 +389,7 @@ openssl rand -base64 48
 7. **Deploy** the contents of `dist/` to your web server document root
    (adjust `vite.config.js` base if using a different subfolder).
 
-8. Ensure Apache serves `api/` at the URL in `.config.json`.
+8. Ensure Apache serves `api/` at the URL in `api/.config.json` `apiBase`.
    Copy `public/.htaccess` into the deployment folder for SPA routing.
 
 ---
@@ -676,7 +666,7 @@ Enable `mod_rewrite`. Copy `public/.htaccess` into the deployment folder:
 </IfModule>
 ```
 
-The `api/` directory must be accessible at the URL in `.config.json`.
+The `api/` directory must be accessible at the URL in `api/.config.json` `apiBase`.
 HTTPS is strongly recommended — JWTs are transmitted on every request.
 
 ---

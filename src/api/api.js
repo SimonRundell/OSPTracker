@@ -4,7 +4,7 @@
  * @module api
  */
 import axios from 'axios';
-import config from '../config.js';
+import { getConfig } from '../config.js';
 
 /**
  * Posts an action to a PHP endpoint.
@@ -15,13 +15,14 @@ import config from '../config.js';
  * @throws {Error} On non-2xx response
  */
 async function apiPost(endpoint, payload, token = null) {
+  const { apiBase } = await getConfig();
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
   
   // Debug onby - log the API request details (endpoint, payload, token presence)
   // console.log("API Request", { endpoint, payload, token });
   const response = await axios.post(
-    `${config.apiBase}/${endpoint}.php`,
+    `${apiBase}/${endpoint}.php`,
     payload,
     { headers }
   );

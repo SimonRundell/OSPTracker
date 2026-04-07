@@ -236,8 +236,7 @@ persisted to `localStorage`.
 
 Before going live:
 
-- [ ] `api/.config.json` has real credentials and a strong `jwt_secret`
-- [ ] `.config.json` has the correct `apiBase` HTTPS URL
+- [ ] `api/.config.json` has real credentials, a strong `jwt_secret`, and the correct `apiBase` HTTPS URL
 - [ ] `setup_admin.php` has been deleted from the server
 - [ ] Default admin password has been changed
 - [ ] HTTPS is configured on the web server
